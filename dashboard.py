@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
 from pandas.errors import EmptyDataError
+from offline_analyzer import analyze_csv
 
 FILE_NAME = "data_log.csv"
+
 ERROR_STATUSES = {
     "Confirmed Anomaly",
     "Memory Leak Suspected",
@@ -29,9 +31,11 @@ def render_dashboard():
         st.info("Waiting for data...")
         return
 
+    # 📊 Latest Data
     st.subheader("Latest Data")
     st.dataframe(df.tail(10), use_container_width=True)
 
+    # 📈 Charts
     st.subheader("CPU Usage")
     st.line_chart(df["cpu"])
 
@@ -44,9 +48,11 @@ def render_dashboard():
     st.subheader("Power Consumption")
     st.line_chart(df["power"])
 
+    # 📊 Status Summary
     st.subheader("Status Summary")
     st.write(df["status"].value_counts())
 
+    # 🚨 Latest Status
     latest_status = df.iloc[-1]["status"]
 
     st.subheader("Latest System Status")
@@ -57,5 +63,76 @@ def render_dashboard():
     else:
         st.success(latest_status)
 
+    # 🧠 Root Cause Table (safe check)
+    st.subheader("Root Cause")
+    if "cause" in df.columns:
+        st.write(df[["time", "status", "cause"]].tail(10))
+    else:
+        st.info("Root cause data not available yet.")
 
+    # 🔍 Latest Diagnosis
+    latest = df.iloc[-1]
+
+    st.subheader("Latest Diagnosis")
+    st.write(f"Status: {latest['status']}")
+    st.write(f"Cause: {latest.get('cause', 'N/A')}")
+    st.write(f"Confidence: {latest.get('confidence', 'N/A')}")
+
+
+# ▶️ Run live dashboard
 render_dashboard()
+
+
+# ==============================
+# 📂 CSV UPLOAD ANALYSIS FEATURE
+# ==============================
+
+st.divider()
+
+st.sidebar.header("Upload Dataset for Analysis")
+
+uploaded_file = st.sidebar.file_uploader(
+    "Upload CSV file",
+    type=["csv"]
+)
+
+if uploaded_file is not None:
+    st.subheader("📂 Uploaded Dataset Analysis")
+
+    try:
+        df_uploaded = pd.read_csv(uploaded_file)
+        
+        uploaded_file.seek(0)  # Reset file pointer for analysis
+
+        result = analyze_csv(uploaded_file)
+
+        if "error" in result:
+            st.error(result["error"])
+        else:
+            # 🧠 Summary
+            st.subheader("Summary")
+            for item in result["summary"]:
+                st.write(f"- {item}")
+
+            # 🔍 Root Cause
+            st.subheader("Root Cause")
+            st.write(f"Cause: {result['root_cause']['cause']}")
+            st.write(f"Details: {result['root_cause']['details']}")
+            st.write(f"Confidence: {result['root_cause']['confidence']}")
+
+            # 📊 Statistics
+            st.subheader("Statistics")
+            st.json(result["stats"])
+
+            # 📈 Charts
+            st.subheader("Uploaded Data Visualization")
+            st.line_chart(df_uploaded[["cpu", "memory"]])
+            st.line_chart(df_uploaded[["temperature", "power"]])
+            
+            st.subheader("Sensor Data Source")
+
+            if "temp_source" in df_uploaded.columns and "power_source" in df_uploaded.columns:
+                st.write(df_uploaded[["time", "temp_source", "power_source"]].tail(10))
+
+    except Exception as e:
+        st.error(f"Error processing file: {e}")

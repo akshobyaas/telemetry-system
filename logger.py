@@ -7,7 +7,7 @@ def create_file():
     if not os.path.exists(FILE_NAME):
         with open(FILE_NAME, mode="w", newline="") as file:
             writer = csv.writer(file)
-            writer.writerow(["time", "cpu", "memory", "temperature", "power", "status"])
+            writer.writerow(["time", "cpu", "memory", "temperature", "power", "temp_source", "power_source", "status", "cause", "confidence"])
 
 def write_data(data, status):
     with open(FILE_NAME, mode="a", newline="") as file:
@@ -18,5 +18,9 @@ def write_data(data, status):
     data["memory"],
     data["temperature"],
     data["power"],
-    status
+    data["temp_source"],
+    data["power_source"],
+    status["status"],
+    status.get("cause"),
+    status.get("confidence")
 ])

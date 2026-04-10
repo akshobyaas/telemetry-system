@@ -1,16 +1,9 @@
 import pandas as pd
-from sklearn.ensemble import IsolationForest
+from ml_model import train_model, predict
+from root_cause import get_root_cause
 
 FILE_NAME = "data_log.csv"
 WINDOW_SIZE = 30
-
-# Train ML model once
-model = None
-
-def train_model(df):
-    global model
-    model = IsolationForest(contamination=0.1, random_state=42)
-    model.fit(df[["cpu", "memory"]])
 
 
 def get_recent_data():
@@ -21,26 +14,34 @@ def get_recent_data():
         return pd.DataFrame()
 
 
+# ==============================
+# 🔍 TREND DETECTION
+# ==============================
 def detect_trend(df):
-    # 🔴 FIX: handle empty or small data
     if df.empty or len(df) < 2:
         return None
 
     memory_values = df["memory"].values
     cpu_values = df["cpu"].values
 
-    # Memory leak detection (improved)
+    # Memory leak
     if sum(y > x for x, y in zip(memory_values, memory_values[1:])) > len(memory_values) * 0.7:
         return "Memory Leak Suspected"
 
-    # CPU instability detection
+    # CPU instability
     if (max(cpu_values) - min(cpu_values)) > 50:
         return "CPU Instability Detected"
 
     return None
 
 
+# ==============================
+# 📊 STATISTICAL DETECTION
+# ==============================
 def detect_statistical(df, data):
+    if df.empty:
+        return False
+
     avg_cpu = df["cpu"].mean()
     avg_memory = df["memory"].mean()
 
@@ -56,53 +57,9 @@ def detect_statistical(df, data):
     return False
 
 
-def detect_ml(data):
-    global model
-    if model is None:
-        return False
-
-    input_df = pd.DataFrame([[data["cpu"], data["memory"]]], columns=["cpu", "memory"])
-    prediction = model.predict(input_df)
-
-    return prediction[0] == -1
-
-def analyze(data):
-    
-    # Thermal check
-    thermal_issue = detect_thermal_issue(data)
-    if thermal_issue:
-        return thermal_issue
-
-    power_issue = detect_power_issue(data)
-    if power_issue:
-        return power_issue
-
-    df = get_recent_data()
-
-    # Train ML if enough data
-    if len(df) > 20:
-        train_model(df)
-
-    # 1. Trend detection (highest priority)
-    trend = detect_trend(df)
-    if trend:
-        return trend
-
-    # 2. Statistical anomaly
-    stat_flag = detect_statistical(df, data)
-
-    # 3. ML anomaly
-    ml_flag = detect_ml(data)
-
-    # 4. Decision logic
-    if stat_flag and ml_flag:
-        return "Confirmed Anomaly"
-
-    if stat_flag or ml_flag:
-        return "Suspicious"
-
-    return "Normal"
-
+# ==============================
+# 🔥 SPECIAL RULES
+# ==============================
 def detect_thermal_issue(data):
     if data["temperature"] > 75 and data["cpu"] < 50:
         return "Abnormal Thermal Rise"
@@ -113,3 +70,90 @@ def detect_power_issue(data):
     if data["power"] > 200 and data["cpu"] < 50:
         return "Power Spike Detected"
     return None
+
+
+# ==============================
+# 🧠 MAIN ANALYSIS ENGINE
+# ==============================
+def analyze(data):
+    df = get_recent_data()
+
+    # 🔥 Priority 1: Direct hardware issues
+    thermal_issue = detect_thermal_issue(data)
+    if thermal_issue:
+        return {
+            "status": thermal_issue,
+            "cause": "Overheating",
+            "details": "High temperature with low CPU usage",
+            "confidence": 0.9
+        }
+
+    power_issue = detect_power_issue(data)
+    if power_issue:
+        return {
+            "status": power_issue,
+            "cause": "Power Spike",
+            "details": "High power consumption with low CPU usage",
+            "confidence": 0.9
+        }
+
+    # Train ML
+    if len(df) > 30:
+        train_model(df)
+
+    # 🔍 Trend detection
+    trend = detect_trend(df)
+
+    # 📊 Statistical anomaly
+    stat_flag = detect_statistical(df, data)
+
+    # 🤖 ML prediction
+    ml_flag, ml_conf = predict(data, df)
+
+    # ==============================
+    # 🧠 DECISION LOGIC
+    # ==============================
+
+    # 🔥 Strong anomaly
+    if stat_flag and ml_flag:
+        root = get_root_cause(df, data)
+        return {
+            "status": "Confirmed Anomaly",
+            "ml_confidence": round(ml_conf, 2),
+            **root
+        }
+
+    # 🔮 Prediction BEFORE failure
+    if ml_flag:
+        root = get_root_cause(df, data)
+        return {
+            "status": "Predicted Failure",
+            "ml_confidence": round(ml_conf, 2),
+            **root
+        }
+
+    # ⚠️ Weak anomaly
+    if stat_flag:
+        root = get_root_cause(df, data)
+        return {
+            "status": "Suspicious",
+            "ml_confidence": round(ml_conf, 2),
+            **root
+        }
+
+    # 📉 Trend-based warning
+    if trend:
+        return {
+            "status": trend,
+            "cause": trend,
+            "details": "Trend-based anomaly detected",
+            "confidence": 0.7
+        }
+
+    # ✅ Normal
+    return {
+        "status": "Normal",
+        "cause": None,
+        "details": None,
+        "confidence": 1.0
+    }
