@@ -71,12 +71,57 @@ def detect_power_issue(data):
         return "Power Spike Detected"
     return None
 
+# ==============================
+# 🚨 EXTREME CONDITIONS
+# ==============================
+def detect_extreme(data):
+    if data["cpu"] > 95:
+        return "CPU Saturation"
 
+    if data["memory"] > 95:
+        return "Memory Saturation"
+
+    return None
+
+
+# ==============================
+# 🔁 SUSTAINED OVERLOAD
+# ==============================
+def detect_stuck_high(df):
+    if df.empty or len(df) < 10:
+        return None
+
+    recent_cpu = df["cpu"].tail(10)
+
+    if all(v > 95 for v in recent_cpu):
+        return "CPU Stuck at 100%"
+
+    return None
 # ==============================
 # 🧠 MAIN ANALYSIS ENGINE
 # ==============================
 def analyze(data):
     df = get_recent_data()
+    
+    # 🚨 Priority 0: Extreme conditions
+    extreme = detect_extreme(data)
+    if extreme:
+        return {
+            "status": extreme,
+            "cause": "Resource Saturation",
+            "details": "System running at extreme capacity",
+            "confidence": 0.95
+        }
+    
+    # 🔁 Priority 0.5: Sustained overload
+    stuck = detect_stuck_high(df)
+    if stuck:
+        return {
+            "status": stuck,
+            "cause": "Sustained Overload",
+            "details": "CPU continuously maxed out",
+            "confidence": 0.9
+       }
 
     # 🔥 Priority 1: Direct hardware issues
     thermal_issue = detect_thermal_issue(data)
@@ -109,6 +154,8 @@ def analyze(data):
 
     # 🤖 ML prediction
     ml_flag, ml_conf = predict(data, df)
+    
+    
 
     # ==============================
     # 🧠 DECISION LOGIC

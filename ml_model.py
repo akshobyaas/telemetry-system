@@ -57,7 +57,7 @@ def predict(data, df):
     global model
 
     if model is None:
-        return False, "Model not trained"
+        return False, 0.0
 
     df = create_features(df)
     latest = df.iloc[-1]

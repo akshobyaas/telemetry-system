@@ -43,7 +43,7 @@ def get_real_temp_power():
 
 
 def get_data():
-    cpu = psutil.cpu_percent(interval=1)
+    cpu = psutil.cpu_percent(interval=None)
     memory = psutil.virtual_memory().percent
 
     temperature, power = get_real_temp_power()
