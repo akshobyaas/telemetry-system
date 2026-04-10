@@ -12,11 +12,11 @@ def main():
     while True:
         data = get_data()
 
-        status = analyze(data)
+        result = analyze(data)
 
-        write_data(data, status)
+        write_data(data, result)
 
-        print(f"{data} => {status}")
+        print(f"{data} => {result}")
 
         time.sleep(2)
 

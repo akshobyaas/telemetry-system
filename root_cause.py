@@ -19,6 +19,8 @@ def get_root_cause(df, latest_data):
             "details": "Not enough data for diagnosis",
             "confidence": 0.0
         }
+        
+    df = df.fillna(0)
 
     cpu = df["cpu"].values
     memory = df["memory"].values
