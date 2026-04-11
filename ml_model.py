@@ -69,9 +69,17 @@ def predict(data, df):
         "cpu_std", "memory_std"
     ]
 
-    X = latest[features].values.reshape(1, -1)
+    # ✅ FIX 1: keep feature names
+    X = pd.DataFrame([latest[features]], columns=features)
 
     prediction = model.predict(X)[0]
-    prob = model.predict_proba(X)[0][1]
+
+    # ✅ FIX 2: safe probability handling
+    probs = model.predict_proba(X)[0]
+
+    if len(probs) > 1:
+        prob = probs[1]
+    else:
+        prob = 0.0
 
     return prediction == 1, prob

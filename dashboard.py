@@ -38,10 +38,10 @@ uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 st.sidebar.markdown("---")
 st.sidebar.subheader("Manual Test")
 
-manual_cpu = st.sidebar.slider("CPU (%)", 0, 100, 50)
-manual_memory = st.sidebar.slider("Memory (%)", 0, 100, 50)
-manual_temp = st.sidebar.slider("Temperature (°C)", 20, 120, 50)
-manual_power = st.sidebar.slider("Power (W)", 50, 300, 100)
+manual_cpu = st.sidebar.text_input("CPU (%)", placeholder="Enter value (0–100)")
+manual_memory = st.sidebar.text_input("Memory (%)", placeholder="Enter value (0–100)")
+manual_temp = st.sidebar.text_input("Temperature (°C)", placeholder="Enter value (20–100)")
+manual_power = st.sidebar.text_input("Power (W)", placeholder="Enter value (50–800)")
 
 run_test = st.sidebar.button("Run Test")
 
@@ -174,6 +174,40 @@ render_dashboard()
 # 🧪 MANUAL TEST RESULT
 # =========================
 if run_test:
+
+    # ✅ Step 1: Check empty
+    if manual_cpu == "" or manual_memory == "" or manual_temp == "" or manual_power == "":
+        st.warning("⚠️ Please fill all fields")
+        st.stop()
+
+    # ✅ Step 2: Convert to float
+    try:
+        manual_cpu = float(manual_cpu)
+        manual_memory = float(manual_memory)
+        manual_temp = float(manual_temp)
+        manual_power = float(manual_power)
+    except:
+        st.error("❌ Please enter valid numeric values")
+        st.stop()
+
+    # ✅ Step 3: Range validation (NOW SAFE)
+    if not (0 <= manual_cpu <= 100):
+        st.error("CPU must be between 0–100")
+        st.stop()
+
+    if not (0 <= manual_memory <= 100):
+        st.error("Memory must be between 0–100")
+        st.stop()
+
+    if not (20 <= manual_temp <= 100):
+        st.error("Temperature must be between 20–100 °C")
+        st.stop()
+
+    if not (50 <= manual_power <= 800):
+        st.error("Power must be between 50–800 W")
+        st.stop()
+
+    # ✅ Step 4: Prepare data
     test_data = {
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "cpu": manual_cpu,
@@ -184,8 +218,10 @@ if run_test:
         "power_source": "manual"
     }
 
+    # ✅ Step 5: Analyze
     result = analyze(test_data)
 
+    # ✅ Step 6: Display
     st.markdown("---")
     st.subheader("🧪 Manual Test Result")
 
@@ -198,7 +234,6 @@ if run_test:
 
     st.write("Cause:", result.get("cause"))
     st.write("Confidence:", result.get("confidence", result.get("ml_confidence")))
-
 
 # =========================
 # 📂 CSV UPLOAD ANALYSIS

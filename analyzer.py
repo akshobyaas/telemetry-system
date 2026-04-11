@@ -49,6 +49,6 @@ def analyze(data):
 
     return {
         "status": status,
-        "cause": root.get("cause"),
+        "cause": root.get("cause") if status != "Normal" else "None",
         "confidence": round(prob if prob else root.get("confidence", 0), 2)
     }
